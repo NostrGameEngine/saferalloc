@@ -21,11 +21,17 @@ subprojects {
 
   java {
     toolchain {
-      languageVersion = JavaLanguageVersion.of(8)
+      languageVersion = JavaLanguageVersion.of(11)
       vendor = JvmVendorSpec.ADOPTIUM
     }
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
     withSourcesJar()
     withJavadocJar()
+  }
+
+  tasks.withType(JavaCompile).configureEach {
+    options.release = 8
   }
 
   tasks.withType(Javadoc).configureEach {
@@ -46,22 +52,22 @@ subprojects {
 
           licenses {
             license {
-              name = (findProperty('POM_LICENSE_NAME') ?: 'Apache-2.0')
-              url = (findProperty('POM_LICENSE_URL') ?: 'https://www.apache.org/licenses/LICENSE-2.0.txt')
+              name = (findProperty('POM_LICENSE_NAME') ?: 'BSD-3-Clause')
+              url = (findProperty('POM_LICENSE_URL') ?: 'https://opensource.org/licenses/BSD-3-Clause')
               distribution = (findProperty('POM_LICENSE_DIST') ?: 'repo')
             }
           }
           developers {
             developer {
-              id = (findProperty('POM_DEVELOPER_ID') ?: 'ngengine')
-              name = (findProperty('POM_DEVELOPER_NAME') ?: 'Nostr Game Engine')
-              url = (findProperty('POM_DEVELOPER_URL') ?: 'https://github.com/ngengine')
+              id = (findProperty('POM_DEVELOPER_ID') ?: 'riccardobl')
+              name = (findProperty('POM_DEVELOPER_NAME') ?: 'Riccardo Balbo')
+              url = (findProperty('POM_DEVELOPER_URL') ?: 'https://github.com/riccardobl')
             }
           }
           scm {
-            url = (findProperty('POM_SCM_URL') ?: '')
-            connection = (findProperty('POM_SCM_CONNECTION') ?: '')
-            developerConnection = (findProperty('POM_SCM_DEV_CONNECTION') ?: '')
+            url = (findProperty('POM_SCM_URL') ?: 'https://github.com/NostrGameEngine/saferalloc')
+            connection = (findProperty('POM_SCM_CONNECTION') ?: 'scm:git:git://github.com/NostrGameEngine/saferalloc.git')
+            developerConnection = (findProperty('POM_SCM_DEV_CONNECTION') ?: 'scm:git:ssh://github.com/NostrGameEngine/saferalloc.git')
           }
         }
       }

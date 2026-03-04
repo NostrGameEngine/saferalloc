@@ -39,7 +39,7 @@ final class NativeLibraryLoader {
 
     byte[] libraryBytes;
     try (InputStream data = in; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-      data.transferTo(out);
+      copyTo(data, out);
       libraryBytes = out.toByteArray();
     } catch (IOException e) {
       throw new UnsatisfiedLinkError("Failed to read bundled native library: " + e);
@@ -199,5 +199,13 @@ final class NativeLibraryLoader {
 
     if (a.equals("aarch64") || a.equals("arm64")) return "aarch64";
     return "x86_64";
+  }
+
+  private static void copyTo(InputStream in, OutputStream out) throws IOException {
+    byte[] buffer = new byte[8192];
+    int read;
+    while ((read = in.read(buffer)) != -1) {
+      out.write(buffer, 0, read);
+    }
   }
 }

@@ -27,7 +27,7 @@ public class DestructiveForkedTest {
     cmd.add(java);
 
     String nativeOverride = System.getProperty("saferalloc.native.override");
-    if (nativeOverride != null && !nativeOverride.isBlank()) {
+    if (nativeOverride != null && !nativeOverride.trim().isEmpty()) {
       cmd.add("-Dsaferalloc.native.override=" + nativeOverride);
     }
 

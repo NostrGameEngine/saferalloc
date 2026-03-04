@@ -1,0 +1,64 @@
+description = 'Platform native library for saferalloc (linux aarch64).'
+
+def releaseCmakeBuildDir = layout.buildDirectory.dir('cmake-release')
+def releaseOutDir = releaseCmakeBuildDir.map { it.dir('out') }
+def testCmakeBuildDir = layout.buildDirectory.dir('cmake-test')
+def testOutDir = testCmakeBuildDir.map { it.dir('out') }
+
+def configureCMake = tasks.register('configureCMake', Exec) {
+  workingDir = file('src/main/native')
+  commandLine 'cmake',
+    '-S', '.',
+    '-B', releaseCmakeBuildDir.get().asFile.absolutePath,
+    '-DCMAKE_BUILD_TYPE=Release',
+    '-DMI_SECURE=ON',
+    '-DSAFERALLOC_ENABLE_PROBES=OFF'
+}
+
+def buildNative = tasks.register('buildNative', Exec) {
+  dependsOn configureCMake
+  workingDir = file('src/main/native')
+  commandLine 'cmake', '--build', releaseCmakeBuildDir.get().asFile.absolutePath, '--config', 'Release'
+}
+
+def configureCMakeTest = tasks.register('configureCMakeTest', Exec) {
+  outputs.upToDateWhen { false }
+  doFirst {
+    delete testCmakeBuildDir.get().asFile
+  }
+  workingDir = file('src/main/native')
+  commandLine 'cmake',
+    '-S', '.',
+    '-B', testCmakeBuildDir.get().asFile.absolutePath,
+    '-DCMAKE_BUILD_TYPE=Debug',
+    '-DMI_SECURE=ON',
+    '-DSAFERALLOC_ENABLE_PROBES=ON'
+}
+
+def buildNativeTest = tasks.register('buildNativeTest', Exec) {
+  outputs.upToDateWhen { false }
+  dependsOn configureCMakeTest
+  workingDir = file('src/main/native')
+  commandLine 'cmake', '--build', testCmakeBuildDir.get().asFile.absolutePath, '--config', 'Debug'
+}
+
+def nativeLibraryName = 'saferalloc.so'
+
+tasks.register('printTestNativePath') {
+  dependsOn buildNativeTest
+  doLast {
+    println new File(testOutDir.get().asFile, nativeLibraryName).absolutePath
+  }
+}
+
+tasks.named('jar', Jar).configure {
+  dependsOn buildNative
+  from(releaseOutDir) {
+    include '**/*.so'
+    into 'natives/linux/aarch64'
+  }
+}
+
+tasks.named('test').configure {
+  enabled = false
+}

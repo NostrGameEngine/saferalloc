@@ -1,0 +1,49 @@
+description = 'Core Java API'
+
+dependencies {
+  testImplementation platform('org.junit:junit-bom:5.10.2')
+  testImplementation 'org.junit.jupiter:junit-jupiter'
+  testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+}
+
+def osName = System.getProperty('os.name', '').toLowerCase()
+def arch = System.getProperty('os.arch', '').toLowerCase()
+
+def nativesProject
+def nativeExt
+if (osName.contains('win')) {
+  nativesProject = project(':saferalloc-natives-windows-x86_64')
+  nativeExt = '.dll'
+} else if ((osName.contains('mac') || osName.contains('darwin')) && (arch == 'aarch64' || arch == 'arm64')) {
+  nativesProject = project(':saferalloc-natives-macos-aarch64')
+  nativeExt = '.dylib'
+} else if (osName.contains('mac') || osName.contains('darwin')) {
+  nativesProject = project(':saferalloc-natives-macos-x86_64')
+  nativeExt = '.dylib'
+} else if (arch == 'aarch64' || arch == 'arm64') {
+  nativesProject = project(':saferalloc-natives-linux-aarch64')
+  nativeExt = '.so'
+} else {
+  nativesProject = project(':saferalloc-natives-linux-x86_64')
+  nativeExt = '.so'
+}
+
+dependencies {
+  // Keep the normal natives artifact on the classpath for fallback/runtime parity.
+  testRuntimeOnly nativesProject
+}
+
+test {
+  dependsOn "${nativesProject.path}:buildNativeTest"
+  useJUnitPlatform()
+  doFirst {
+    File outDir = nativesProject.layout.buildDirectory.dir('cmake-test/out').get().asFile
+    File nativeFile = [
+      new File(outDir, "saferalloc${nativeExt}"),
+      new File(outDir, "libsaferalloc${nativeExt}")
+    ].find { it.exists() } ?: new File(outDir, "libsaferalloc${nativeExt}")
+    systemProperty 'saferalloc.native.override', nativeFile.absolutePath
+    systemProperty 'saferalloc.test.probes.enabled', 'true'
+  }
+}

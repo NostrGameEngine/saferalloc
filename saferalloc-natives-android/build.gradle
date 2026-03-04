@@ -1,0 +1,117 @@
+description = 'Android platform native library for saferalloc.'
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+  localPropertiesFile.withInputStream { stream ->
+    localProperties.load(stream)
+  }
+}
+
+def pickNewestNdk = { File ndkParent ->
+  if (!ndkParent?.exists() || !ndkParent.directory) {
+    return null
+  }
+  def versions = ndkParent.listFiles()?.findAll { it.directory } ?: []
+  if (!versions) {
+    return null
+  }
+  versions.sort { a, b -> b.name <=> a.name }
+  return versions[0].absolutePath
+}
+
+def ndkHome = System.getenv('ANDROID_NDK_HOME') ?: (findProperty('androidNdkHome') ?: localProperties.getProperty('ndk.dir', ''))
+def sdkCandidates = []
+if (!ndkHome) {
+  def userHome = System.getProperty('user.home', '')
+  sdkCandidates = [
+    System.getenv('ANDROID_SDK_ROOT'),
+    System.getenv('ANDROID_HOME'),
+    findProperty('androidHome'),
+    localProperties.getProperty('sdk.dir'),
+    userHome ? "${userHome}/Android/Sdk" : '',
+    userHome ? "${userHome}/Library/Android/sdk" : ''
+  ].findAll { it != null && it.toString().trim() }
+
+  sdkCandidates.find { sdkPath ->
+    def sdkDir = new File(sdkPath.toString())
+    if (!sdkDir.exists()) {
+      return false
+    }
+    def ndkBundle = new File(sdkDir, 'ndk-bundle')
+    if (ndkBundle.exists()) {
+      ndkHome = ndkBundle.absolutePath
+      return true
+    }
+    def newestNdk = pickNewestNdk(new File(sdkDir, 'ndk'))
+    if (newestNdk) {
+      ndkHome = newestNdk
+      return true
+    }
+    return false
+  }
+}
+def toolchain = ndkHome ? new File(ndkHome, 'build/cmake/android.toolchain.cmake') : null
+def minSupportedApi = 30
+def androidPlatform = (findProperty('androidPlatform') ?: "android-${minSupportedApi}")
+def androidApiLevel = (androidPlatform =~ /android-(\d+)/).with { it.matches() ? it[0][1] as int : -1 }
+if (androidApiLevel < minSupportedApi) {
+  throw new GradleException("androidPlatform=${androidPlatform} is below Android 11. Use -PandroidPlatform=android-${minSupportedApi} or newer.")
+}
+
+def abis = ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64']
+
+def releaseBuildDirs = abis.collectEntries { abi -> [(abi): layout.buildDirectory.dir("cmake-${abi}-release")] }
+def releaseOutDirs   = abis.collectEntries { abi -> [(abi): releaseBuildDirs[abi].map { it.dir('out') }] }
+
+def configureTasks = [:]
+def buildTasks = [:]
+
+abis.each { abi ->
+  def safeAbi = abi.replaceAll('[^A-Za-z0-9]+', '_')
+  def cmakeBuildDir = releaseBuildDirs[abi]
+
+  configureTasks[abi] = tasks.register("configureCMake_${safeAbi}", Exec) {
+    workingDir = file('src/main/native')
+    doFirst {
+      if (!ndkHome || !toolchain?.exists()) {
+        throw new GradleException("Android NDK toolchain not found. Resolved ndkHome='${ndkHome}'. Checked SDK candidates=${sdkCandidates}. Set ANDROID_NDK_HOME or -PandroidNdkHome to a valid NDK (for example under ANDROID_SDK_ROOT/ndk/<version>).")
+      }
+      commandLine 'cmake',
+        '-S', '.',
+        '-B', cmakeBuildDir.get().asFile.absolutePath,
+        "-DCMAKE_TOOLCHAIN_FILE=${toolchain.absolutePath}",
+        "-DANDROID_ABI=${abi}",
+        "-DANDROID_PLATFORM=${androidPlatform}",
+        '-DCMAKE_BUILD_TYPE=Release',
+        '-DSAFERALLOC_ANDROID_PASSTHROUGH=ON',
+        '-DSAFERALLOC_ENABLE_PROBES=OFF'
+    }
+  }
+
+  buildTasks[abi] = tasks.register("buildNative_${safeAbi}", Exec) {
+    dependsOn configureTasks[abi]
+    workingDir = file('src/main/native')
+    commandLine 'cmake', '--build', cmakeBuildDir.get().asFile.absolutePath, '--config', 'Release'
+  }
+}
+
+def buildNativeAll = tasks.register('buildNativeAll') {
+  dependsOn buildTasks.values()
+}
+
+def nativeLibraryName = 'libsaferalloc.so'
+
+tasks.named('jar', Jar).configure {
+  dependsOn buildNativeAll
+  abis.each { abi ->
+    from(releaseOutDirs[abi]) {
+      include nativeLibraryName
+      into "natives/android/${abi}"
+    }
+  }
+}
+
+tasks.named('test').configure {
+  enabled = false
+}

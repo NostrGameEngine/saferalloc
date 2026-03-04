@@ -1,0 +1,21 @@
+pluginManagement {
+  repositories {
+    gradlePluginPortal()
+    mavenCentral()
+  }
+}
+
+plugins {
+  id 'org.gradle.toolchains.foojay-resolver-convention' version '0.9.0'
+}
+
+rootProject.name = 'saferalloc'
+
+include ':saferalloc'
+include ':saferalloc-natives-linux-x86_64'
+include ':saferalloc-natives-linux-aarch64'
+include ':saferalloc-natives-windows-x86_64'
+include ':saferalloc-natives-macos-x86_64'
+include ':saferalloc-natives-macos-aarch64'
+
+include ':saferalloc-natives-android'

@@ -1,0 +1,119 @@
+name: publish-snapshots
+
+on:
+  push:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            module: saferalloc-natives-linux-x86_64
+          - os: ubuntu-latest
+            module: saferalloc-natives-android
+          - os: ubuntu-24.04-arm
+            module: saferalloc-natives-linux-aarch64
+          - os: windows-latest
+            module: saferalloc-natives-windows-x86_64
+          - os: macos-15-intel
+            module: saferalloc-natives-macos-x86_64
+          - os: macos-latest
+            module: saferalloc-natives-macos-aarch64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Setup Android SDK
+        if: matrix.module == 'saferalloc-natives-android'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        if: matrix.module == 'saferalloc-natives-android'
+        shell: bash
+        run: |
+          sdkmanager "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Compute snapshot version
+        shell: bash
+        run: |
+          VERSION="${{ secrets.SNAPSHOT_VERSION }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="0.1.0-SNAPSHOT"
+          fi
+          case "$VERSION" in
+            *-SNAPSHOT) ;;
+            *) VERSION="${VERSION}-SNAPSHOT" ;;
+          esac
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Publish snapshot to Maven Central snapshots
+        shell: bash
+        env:
+          ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishMavenJavaPublicationToSonatypeRepository
+
+  publish-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Run core tests (uses platform natives dependency)
+        run: |
+          ./gradlew :saferalloc:test
+
+      - name: Compute snapshot version
+        shell: bash
+        run: |
+          VERSION="${{ secrets.SNAPSHOT_VERSION }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="0.1.0-SNAPSHOT"
+          fi
+          case "$VERSION" in
+            *-SNAPSHOT) ;;
+            *) VERSION="${VERSION}-SNAPSHOT" ;;
+          esac
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Publish core snapshot
+        env:
+          ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew -PVERSION_NAME=${VERSION} :saferalloc:publishMavenJavaPublicationToSonatypeRepository

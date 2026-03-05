@@ -36,6 +36,9 @@ set_target_properties(saferalloc PROPERTIES
   C_STANDARD_REQUIRED ON
   C_EXTENSIONS OFF
 )
+if(MSVC)
+  target_compile_options(saferalloc PRIVATE /experimental:c11atomics)
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   target_compile_options(saferalloc PRIVATE -O0 -g3)

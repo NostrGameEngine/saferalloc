@@ -3,6 +3,12 @@ name: publish-release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.2.3). Optional for release event runs."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -22,7 +28,7 @@ jobs:
             module: saferalloc-natives-linux-aarch64
           - os: windows-latest
             module: saferalloc-natives-windows-x86_64
-          - os: macos-14-large
+          - os: macos-15-intel
             module: saferalloc-natives-macos-x86_64
           - os: macos-latest
             module: saferalloc-natives-macos-aarch64
@@ -54,14 +60,25 @@ jobs:
           sdkmanager "ndk;27.2.12479018"
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
-      - name: Run core tests (Linux)
+      - name: Run core tests (Linux)        
+        if: matrix.os != 'windows-latest'
         run: |
           ./gradlew :saferalloc:test
 
       - name: Compute version
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "Unable to determine release tag" >&2
+            exit 1
+          fi
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
 
       - name: Publish release to Maven Central
@@ -70,12 +87,14 @@ jobs:
           ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+        shell: bash
         run: |
-          ./gradlew -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishMavenJavaPublicationToSonatypeRepository closeAndReleaseSonatypeStagingRepository
+          ./gradlew -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishMavenJavaPublicationToSonatypeRepository
 
       - name: Publish release to GitHub Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
           ./gradlew -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishMavenJavaPublicationToGitHubPackagesRepository
 
@@ -105,7 +124,17 @@ jobs:
       - name: Compute version
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$TAG" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if [ -z "$TAG" ]; then
+            echo "Unable to determine release tag" >&2
+            exit 1
+          fi
           echo "VERSION=${TAG#v}" >> $GITHUB_ENV
 
       - name: Publish core release to Maven Central
@@ -115,7 +144,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./gradlew -PVERSION_NAME=${VERSION} :saferalloc:publishMavenJavaPublicationToSonatypeRepository closeAndReleaseSonatypeStagingRepository
+          ./gradlew -PVERSION_NAME=${VERSION} :saferalloc:publishMavenJavaPublicationToSonatypeRepository
 
       - name: Publish core release to GitHub Packages
         env:

@@ -2,7 +2,8 @@ name: publish-snapshots
 
 on:
   push:
-    branches: [ "master" ]
+  pull_request:
+
 
 permissions:
   contents: read

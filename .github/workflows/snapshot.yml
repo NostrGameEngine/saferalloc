@@ -2,7 +2,8 @@ name: publish-snapshots
 
 on:
   push:
-    branches: [ "master" ]
+  pull_request:
+
 
 permissions:
   contents: read
@@ -74,7 +75,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./gradlew -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishMavenJavaPublicationToSonatypeRepository
+          ./gradlew -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishToSonatype
 
   publish-core:
     runs-on: ubuntu-latest
@@ -116,4 +117,4 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./gradlew -PVERSION_NAME=${VERSION} :saferalloc:publishMavenJavaPublicationToSonatypeRepository
+          ./gradlew -PVERSION_NAME=${VERSION} :saferalloc:publishToSonatype

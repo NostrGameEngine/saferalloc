@@ -102,16 +102,56 @@ def buildNativeAll = tasks.register('buildNativeAll') {
 
 def nativeLibraryName = 'libsaferalloc.so'
 
-tasks.named('jar', Jar).configure {
+def generatedJniLibsDir = layout.buildDirectory.dir('generated/aar/jni')
+
+def prepareAarContents = tasks.register('prepareAarContents', Sync) {
   dependsOn buildNativeAll
   abis.each { abi ->
     from(releaseOutDirs[abi]) {
       include nativeLibraryName
-      into "natives/android/${abi}"
+      into "${abi}"
+    }
+  }
+  into generatedJniLibsDir
+}
+
+def bundleReleaseAar = tasks.register('bundleReleaseAar', Zip) {
+  dependsOn prepareAarContents
+  archiveBaseName.set(project.name)
+  archiveVersion.set(project.version.toString())
+  archiveExtension.set('aar')
+  destinationDirectory.set(layout.buildDirectory.dir('outputs/aar'))
+
+  from(layout.projectDirectory.file('src/main/AndroidManifest.xml')) {
+    into ''
+  }
+
+  from(generatedJniLibsDir) {
+    into 'jni'
+  }
+}
+
+tasks.register('sourcesJar', Jar) {
+  archiveClassifier.set('sources')
+}
+
+tasks.register('javadocJar', Jar) {
+  archiveClassifier.set('javadoc')
+}
+
+publishing {
+  publications {
+    mavenAar(MavenPublication) {
+      artifact(bundleReleaseAar)
+      artifact(tasks.named('sourcesJar'))
+      artifact(tasks.named('javadocJar'))
+      pom {
+        packaging = 'aar'
+      }
     }
   }
 }
 
-tasks.named('test').configure {
+tasks.matching { it.name == 'test' }.configureEach {
   enabled = false
 }

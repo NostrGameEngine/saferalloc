@@ -12,63 +12,71 @@ allprojects {
 }
 
 subprojects {
-  apply plugin: 'java-library'
   apply plugin: 'maven-publish'
   apply plugin: 'signing'
 
   group = rootProject.group
   version = rootProject.version
 
-  java {
-    toolchain {
-      languageVersion = JavaLanguageVersion.of(11)
-      vendor = JvmVendorSpec.ADOPTIUM
+  if (project.name != 'saferalloc-natives-android') {
+    apply plugin: 'java-library'
+
+    java {
+      toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+        vendor = JvmVendorSpec.ADOPTIUM
+      }
+      sourceCompatibility = JavaVersion.VERSION_1_8
+      targetCompatibility = JavaVersion.VERSION_1_8
+      withSourcesJar()
+      withJavadocJar()
     }
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-    withSourcesJar()
-    withJavadocJar()
-  }
 
-  tasks.withType(JavaCompile).configureEach {
-    options.release = 8
-  }
+    tasks.withType(JavaCompile).configureEach {
+      options.release = 8
+    }
 
-  tasks.withType(Javadoc).configureEach {
-    options.addBooleanOption('Xdoclint:none', true)
+    tasks.withType(Javadoc).configureEach {
+      options.addBooleanOption('Xdoclint:none', true)
+    }
+
+    publishing {
+      publications {
+        mavenJava(MavenPublication) {
+          from components.java
+        }
+      }
+    }
   }
 
   publishing {
-    publications {
-      mavenJava(MavenPublication) {
-        from components.java
-        artifactId = project.name
+    publications.withType(MavenPublication).configureEach {
+      artifactId = project.name
 
-        pom {
-          name = (findProperty('POM_NAME') ?: project.name)
-          description = (findProperty('POM_DESCRIPTION') ?: project.description)
-          inceptionYear = (findProperty('POM_INCEPTION_YEAR') ?: '2026')
-          url = (findProperty('POM_URL') ?: '')
+      pom {
+        name = (findProperty('POM_NAME') ?: project.name)
+        description = (findProperty('POM_DESCRIPTION') ?: project.description)
+        inceptionYear = (findProperty('POM_INCEPTION_YEAR') ?: '2026')
+        url = (findProperty('POM_URL') ?: '')
 
-          licenses {
-            license {
-              name = (findProperty('POM_LICENSE_NAME') ?: 'BSD-3-Clause')
-              url = (findProperty('POM_LICENSE_URL') ?: 'https://opensource.org/licenses/BSD-3-Clause')
-              distribution = (findProperty('POM_LICENSE_DIST') ?: 'repo')
-            }
+        licenses {
+          license {
+            name = (findProperty('POM_LICENSE_NAME') ?: 'BSD-3-Clause')
+            url = (findProperty('POM_LICENSE_URL') ?: 'https://opensource.org/licenses/BSD-3-Clause')
+            distribution = (findProperty('POM_LICENSE_DIST') ?: 'repo')
           }
-          developers {
-            developer {
-              id = (findProperty('POM_DEVELOPER_ID') ?: 'riccardobl')
-              name = (findProperty('POM_DEVELOPER_NAME') ?: 'Riccardo Balbo')
-              url = (findProperty('POM_DEVELOPER_URL') ?: 'https://github.com/riccardobl')
-            }
+        }
+        developers {
+          developer {
+            id = (findProperty('POM_DEVELOPER_ID') ?: 'riccardobl')
+            name = (findProperty('POM_DEVELOPER_NAME') ?: 'Riccardo Balbo')
+            url = (findProperty('POM_DEVELOPER_URL') ?: 'https://github.com/riccardobl')
           }
-          scm {
-            url = (findProperty('POM_SCM_URL') ?: 'https://github.com/NostrGameEngine/saferalloc')
-            connection = (findProperty('POM_SCM_CONNECTION') ?: 'scm:git:git://github.com/NostrGameEngine/saferalloc.git')
-            developerConnection = (findProperty('POM_SCM_DEV_CONNECTION') ?: 'scm:git:ssh://github.com/NostrGameEngine/saferalloc.git')
-          }
+        }
+        scm {
+          url = (findProperty('POM_SCM_URL') ?: 'https://github.com/NostrGameEngine/saferalloc')
+          connection = (findProperty('POM_SCM_CONNECTION') ?: 'scm:git:git://github.com/NostrGameEngine/saferalloc.git')
+          developerConnection = (findProperty('POM_SCM_DEV_CONNECTION') ?: 'scm:git:ssh://github.com/NostrGameEngine/saferalloc.git')
         }
       }
     }
@@ -85,13 +93,15 @@ subprojects {
     }
   }
 
-  signing {
-    def signingKey = (findProperty('signingInMemoryKey') ?: findProperty('signingKey'))
-    def signingPassword = (findProperty('signingInMemoryKeyPassword') ?: findProperty('signingPassword'))
+  afterEvaluate {
+    signing {
+      def signingKey = (findProperty('signingInMemoryKey') ?: findProperty('signingKey'))
+      def signingPassword = (findProperty('signingInMemoryKeyPassword') ?: findProperty('signingPassword'))
 
-    if (signingKey != null && signingKey.toString().trim()) {
-      useInMemoryPgpKeys(signingKey.toString(), signingPassword?.toString())
-      sign publishing.publications.mavenJava
+      if (signingKey != null && signingKey.toString().trim() && !publishing.publications.isEmpty()) {
+        useInMemoryPgpKeys(signingKey.toString(), signingPassword?.toString())
+        sign publishing.publications
+      }
     }
   }
 }

@@ -76,6 +76,11 @@ public final class SaferAlloc {
     }
   }
 
+  public static long currentAllocatedBytes() {
+    ensureLoaded();
+    return SaferAllocNative.currentAllocatedBytes();
+  }
+
   private static void requireNonNegativeSize(int size) {
     if (size < 0) {
       throw new IllegalArgumentException("size must be >= 0");
@@ -104,14 +109,8 @@ public final class SaferAlloc {
   }
 
   private static int pointerSizeBytes() {
-    String model = System.getProperty("sun.arch.data.model", "").trim();
-    if ("32".equals(model)) {
-      return 4;
-    }
-    if ("64".equals(model)) {
-      return 8;
-    }
-    return Long.BYTES;
+    ensureLoaded();
+    return SaferAllocNative.pointerSizeBytes();
   }
 
   private static ByteBuffer wrapMemByteBuffer(long addr, int size) {

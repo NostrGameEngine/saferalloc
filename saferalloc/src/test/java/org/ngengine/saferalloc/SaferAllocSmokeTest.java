@@ -37,4 +37,25 @@ public class SaferAllocSmokeTest {
 
     SaferAlloc.free(resized);
   }
+
+  @Test
+  void allocatedBytesCounterTracksLifecycle() {
+    long before = SaferAlloc.currentAllocatedBytes();
+    ByteBuffer buffer = SaferAlloc.malloc(128);
+    assertNotNull(buffer);
+
+    long afterAlloc = SaferAlloc.currentAllocatedBytes();
+    assertTrue(afterAlloc >= before, "allocated bytes should not decrease after alloc");
+    assertTrue(afterAlloc > before, "allocated bytes should increase after alloc");
+
+    ByteBuffer grown = SaferAlloc.realloc(buffer, 512);
+    assertNotNull(grown);
+    long afterRealloc = SaferAlloc.currentAllocatedBytes();
+    assertTrue(afterRealloc >= before, "allocated bytes should remain tracked after realloc");
+
+    SaferAlloc.free(grown);
+    long afterFree = SaferAlloc.currentAllocatedBytes();
+    assertEquals(before, afterFree, "allocated bytes should return to baseline after free");
+  }
+
 }

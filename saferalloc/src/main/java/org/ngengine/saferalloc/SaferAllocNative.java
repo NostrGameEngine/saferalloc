@@ -1,5 +1,6 @@
 package org.ngengine.saferalloc;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 
@@ -21,5 +22,5 @@ public final class SaferAllocNative {
   public static native int pointerSizeBytes();
 
   public static native ByteBuffer wrapMemByteBuffer(long addr, long size);
-  public static native long addressMemByteBuffer(ByteBuffer buffer);
+  public static native long addressMemByteBuffer(Buffer buffer);
 }

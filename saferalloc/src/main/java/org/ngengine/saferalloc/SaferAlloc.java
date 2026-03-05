@@ -1,6 +1,7 @@
 package org.ngengine.saferalloc;
 
 import java.nio.ByteBuffer;
+import java.nio.Buffer;
 
 
 public final class SaferAlloc {
@@ -53,7 +54,7 @@ public final class SaferAlloc {
     return wrapMemByteBuffer(addr, size);
   }
 
-  public static long address(ByteBuffer buffer) {
+  public static long address(Buffer buffer) {
     ensureLoaded();
     if (buffer == null) {
       return 0L;
@@ -62,6 +63,14 @@ public final class SaferAlloc {
   }
 
   public static void free(ByteBuffer buffer) {
+    ensureLoaded();
+    long addr = address(buffer);
+    if (addr != 0L) {
+      SaferAllocNative.free(addr);
+    }
+  }
+
+  public static void free(Buffer buffer) {
     ensureLoaded();
     long addr = address(buffer);
     if (addr != 0L) {

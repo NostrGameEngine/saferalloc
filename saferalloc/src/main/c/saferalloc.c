@@ -229,7 +229,7 @@ JNIEXPORT jlong JNICALL Java_org_ngengine_saferalloc_SaferAllocNative_addressMem
   }
   void* p = (*env)->GetDirectBufferAddress(env, buffer);
   if (p == NULL) {
-    safer_throw_illegal_argument(env, "buffer must be a direct ByteBuffer");
+    safer_throw_illegal_argument(env, "buffer must be a direct Buffer");
     return 0;
   }
   return (jlong)(uintptr_t)p;

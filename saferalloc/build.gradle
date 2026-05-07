@@ -45,7 +45,9 @@ test {
     File outDir = nativesProject.layout.buildDirectory.dir('cmake-test/out').get().asFile
     File nativeFile = [
       new File(outDir, "saferalloc${nativeExt}"),
-      new File(outDir, "libsaferalloc${nativeExt}")
+      new File(outDir, "libsaferalloc${nativeExt}"),
+      new File(outDir, "Debug/saferalloc${nativeExt}"),
+      new File(outDir, "Debug/libsaferalloc${nativeExt}")
     ].find { it.exists() } ?: new File(outDir, "libsaferalloc${nativeExt}")
     systemProperty 'saferalloc.native.override', nativeFile.absolutePath
     systemProperty 'saferalloc.test.probes.enabled', 'true'

@@ -23,7 +23,7 @@ subprojects {
 
     java {
       toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
+        languageVersion = JavaLanguageVersion.of(17)
         vendor = JvmVendorSpec.MICROSOFT
       }
       sourceCompatibility = JavaVersion.VERSION_1_8

@@ -38,12 +38,12 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: microsoft
-          java-version: 17
+          java-version: "17"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.10.2"
+          gradle-version: "8.14.3"
 
       - name: Setup Android SDK
         if: matrix.module == 'saferalloc-natives-android'
@@ -95,12 +95,12 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: microsoft
-          java-version: 17
+          java-version: "17"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.10.2"
+          gradle-version: "8.14.3"
 
       - name: Compute snapshot version
         shell: bash

@@ -2,6 +2,7 @@ description = 'Platform native library for saferalloc (windows x86_64).'
 
 def releaseCmakeBuildDir = layout.buildDirectory.dir('cmake-release')
 def releaseOutDir = releaseCmakeBuildDir.map { it.dir('out') }
+def releaseDllDir = releaseOutDir.map { it.dir('Release') }
 def testCmakeBuildDir = layout.buildDirectory.dir('cmake-test')
 def testOutDir = testCmakeBuildDir.map { it.dir('out') }
 
@@ -53,8 +54,8 @@ tasks.register('printTestNativePath') {
 
 tasks.named('jar', Jar).configure {
   dependsOn buildNative
-  from(releaseOutDir) {
-    include '**/*.dll'
+  from(releaseDllDir) {
+    include nativeLibraryName
     into 'natives/windows/x86_64'
   }
 }

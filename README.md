@@ -12,6 +12,7 @@ The underlying implementations are platform-specific and might change over time.
 |macOS x86_64|mimalloc|mimalloc with MI_SECURE=ON|
 |macOS aarch64|mimalloc|mimalloc with MI_SECURE=ON|
 |Windows x86_64|mimalloc|mimalloc with MI_SECURE=ON|
+|Windows aarch64|mimalloc|mimalloc with MI_SECURE=ON|
 |Android 11+|passthrough|Modern Android has its own hardened allocator (Scudo), so we just pass through. |
 
 ## Public API

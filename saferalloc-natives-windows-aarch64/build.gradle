@@ -1,4 +1,4 @@
-description = 'Platform native library for saferalloc (windows x86_64).'
+description = 'Platform native library for saferalloc (windows aarch64).'
 
 def releaseCmakeBuildDir = layout.buildDirectory.dir('cmake-release')
 def releaseOutDir = releaseCmakeBuildDir.map { it.dir('out') }
@@ -11,6 +11,7 @@ def configureCMake = tasks.register('configureCMake', Exec) {
   commandLine 'cmake',
     '-S', '.',
     '-B', releaseCmakeBuildDir.get().asFile.absolutePath,
+    '-A', 'ARM64',
     '-DCMAKE_BUILD_TYPE=Release',
     '-DMI_SECURE=ON',
     '-DSAFERALLOC_ENABLE_PROBES=OFF'
@@ -31,6 +32,7 @@ def configureCMakeTest = tasks.register('configureCMakeTest', Exec) {
   commandLine 'cmake',
     '-S', '.',
     '-B', testCmakeBuildDir.get().asFile.absolutePath,
+    '-A', 'ARM64',
     '-DCMAKE_BUILD_TYPE=Debug',
     '-DMI_SECURE=ON',
     '-DSAFERALLOC_ENABLE_PROBES=ON'
@@ -44,7 +46,7 @@ def buildNativeTest = tasks.register('buildNativeTest', Exec) {
 }
 
 def nativeLibraryName = 'saferalloc.dll'
-def expectedPeMachine = 0x8664
+def expectedPeMachine = 0xAA64
 
 tasks.register('printTestNativePath') {
   dependsOn buildNativeTest
@@ -78,7 +80,7 @@ tasks.named('jar', Jar).configure {
   dependsOn verifyNativeArchitecture
   from(releaseDllDir) {
     include nativeLibraryName
-    into 'natives/windows/x86_64'
+    into 'natives/windows/aarch64'
   }
 }
 

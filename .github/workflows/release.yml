@@ -28,6 +28,8 @@ jobs:
             module: saferalloc-natives-linux-aarch64
           - os: windows-latest
             module: saferalloc-natives-windows-x86_64
+          - os: windows-11-arm
+            module: saferalloc-natives-windows-aarch64
           - os: macos-15-intel
             module: saferalloc-natives-macos-x86_64
           - os: macos-latest
@@ -41,8 +43,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "21"
+          distribution: microsoft
+          java-version: 17
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -60,10 +62,12 @@ jobs:
           sdkmanager "ndk;27.2.12479018"
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
-      - name: Run core tests (Linux)        
-        if: matrix.os != 'windows-latest'
+
+      - name: Run core tests (uses platform natives dependency)
+        shell: bash
         run: |
           ./gradlew :saferalloc:test
+
 
       - name: Compute version
         shell: bash
@@ -117,8 +121,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: "21"
+          distribution: microsoft
+          java-version: 17
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4

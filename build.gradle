@@ -24,7 +24,7 @@ subprojects {
     java {
       toolchain {
         languageVersion = JavaLanguageVersion.of(11)
-        vendor = JvmVendorSpec.ADOPTIUM
+        vendor = JvmVendorSpec.MICROSOFT
       }
       sourceCompatibility = JavaVersion.VERSION_1_8
       targetCompatibility = JavaVersion.VERSION_1_8

@@ -84,7 +84,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./gradlew -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishToSonatype
+          ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishToSonatype
 
   publish-core:
     runs-on: ubuntu-latest
@@ -116,10 +116,11 @@ jobs:
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Publish core snapshot
+        shell: bash
         env:
           ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
           ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.SONATYPE_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./gradlew -PVERSION_NAME=${VERSION} :saferalloc:publishToSonatype
+          ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :saferalloc:publishToSonatype

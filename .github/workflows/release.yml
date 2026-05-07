@@ -101,7 +101,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         shell: bash
         run: |
-          ./gradlew -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishToSonatype closeSonatypeStagingRepository --info
+          ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishToSonatype closeSonatypeStagingRepository --info
 
       - name: Publish release to GitHub Packages
         env:
@@ -164,7 +164,7 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
-          ./gradlew -PVERSION_NAME=${VERSION} :saferalloc:publishToSonatype closeSonatypeStagingRepository --info
+          ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :saferalloc:publishToSonatype closeSonatypeStagingRepository --info
 
       - name: Publish core release to GitHub Packages
         env:

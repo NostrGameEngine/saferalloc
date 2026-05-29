@@ -7,6 +7,8 @@
 #if defined(SAFERALLOC_ANDROID_PASSTHROUGH)
   #include <errno.h>
   #include <malloc.h>
+#elif defined(SAFERALLOC_IOS_PASSTHROUGH)
+  #include <malloc/malloc.h>
 #else
   #include "mimalloc.h"
 #endif
@@ -27,6 +29,28 @@ static size_t safer_usable_size(const void* p) {
 
 static void* safer_malloc_aligned(size_t size, size_t alignment) {
   // Android/NDK: use posix_memalign for portability (aligned_alloc is not universally available).
+  void* p = NULL;
+  int rc = posix_memalign(&p, alignment, size);
+  if (rc != 0) {
+    return NULL;
+  }
+  return p;
+}
+#elif defined(SAFERALLOC_IOS_PASSTHROUGH)
+// iOS uses libmalloc; keep this artifact dependency-free and linkable by libJGLIOS.
+static void* safer_malloc(size_t size) { return malloc(size); }
+static void* safer_calloc(size_t count, size_t size) { return calloc(count, size); }
+static void* safer_realloc(void* p, size_t new_size) { return realloc(p, new_size); }
+static void safer_free(void* p) { free(p); }
+
+static size_t safer_usable_size(const void* p) {
+  if (p == NULL) {
+    return 0;
+  }
+  return malloc_size(p);
+}
+
+static void* safer_malloc_aligned(size_t size, size_t alignment) {
   void* p = NULL;
   int rc = posix_memalign(&p, alignment, size);
   if (rc != 0) {

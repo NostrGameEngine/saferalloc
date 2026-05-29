@@ -8,6 +8,10 @@ final class NativeLibraryLoader {
   private NativeLibraryLoader() {}
 
   static void load(String baseName) {
+    if (isIosRuntime()) {
+      return;
+    }
+
     Path override = getOverridePath(baseName);
     if (override != null) {
       System.load(override.toAbsolutePath().toString());
@@ -176,7 +180,16 @@ final class NativeLibraryLoader {
       || vm.toLowerCase(Locale.ROOT).contains("dalvik");
   }
 
+  private static boolean isIosRuntime() {
+    String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+    String vm = System.getProperty("java.vm.name", "").toLowerCase(Locale.ROOT);
+    return os.contains("ios") || vm.contains("substrate vm") && os.contains("darwin");
+  }
+
   private static String detectOs() {
+    if (isIosRuntime()) {
+      return "ios";
+    }
     if (isAndroidRuntime()) {
       return "android";
     }

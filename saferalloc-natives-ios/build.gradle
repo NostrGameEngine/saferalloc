@@ -1,0 +1,192 @@
+description = 'iOS platform native library for saferalloc.'
+
+def iosMinVersion = (findProperty('iosMinVersion') ?: '15.0').toString()
+def sourceFile = rootProject.file('saferalloc/src/main/c/saferalloc.c')
+def generatedHeadersDir = layout.buildDirectory.dir('generated/headers')
+def generatedPlistsDir = layout.buildDirectory.dir('generated/plists')
+def deviceBuildDir = layout.buildDirectory.dir('ios-device')
+def simulatorBuildDir = layout.buildDirectory.dir('ios-simulator')
+def frameworkRoot = layout.buildDirectory.dir('frameworks')
+def xcframeworkDir = layout.buildDirectory.dir('xcframework/saferalloc.xcframework')
+def iosPackageDir = layout.buildDirectory.dir('ios-package/lib/ios')
+
+def javaHome = providers.systemProperty('java.home')
+        .map { new File(it) }
+        .get()
+def jniIncludeDir = new File(javaHome, 'include')
+def jniPlatformIncludeDir = new File(jniIncludeDir, 'darwin')
+
+def xcrun = { String sdk, String tool ->
+    def output = new ByteArrayOutputStream()
+    exec {
+        commandLine 'xcrun', '--sdk', sdk, '--find', tool
+        standardOutput = output
+    }
+    output.toString('UTF-8').trim()
+}
+
+def sdkPath = { String sdk ->
+    def output = new ByteArrayOutputStream()
+    exec {
+        commandLine 'xcrun', '--sdk', sdk, '--show-sdk-path'
+        standardOutput = output
+    }
+    output.toString('UTF-8').trim()
+}
+
+def writeInfoPlist = { File file, String identifier ->
+    file.text = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>saferalloc</string>
+    <key>CFBundleIdentifier</key>
+    <string>${identifier}</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>saferalloc</string>
+    <key>CFBundlePackageType</key>
+    <string>FMWK</string>
+    <key>CFBundleShortVersionString</key>
+    <string>${project.version}</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>MinimumOSVersion</key>
+    <string>${iosMinVersion}</string>
+</dict>
+</plist>
+"""
+}
+
+tasks.register('prepareIosFrameworkInputs') {
+    outputs.dir(generatedHeadersDir)
+    outputs.dir(generatedPlistsDir)
+    doLast {
+        def headers = generatedHeadersDir.get().asFile
+        headers.mkdirs()
+        new File(headers, 'saferalloc.h').text = """#pragma once
+
+// JNI symbols are exported by the saferalloc static framework.
+"""
+        def plists = generatedPlistsDir.get().asFile
+        plists.mkdirs()
+        writeInfoPlist(new File(plists, 'device-Info.plist'), 'org.ngengine.saferalloc.ios')
+        writeInfoPlist(new File(plists, 'simulator-Info.plist'), 'org.ngengine.saferalloc.ios.simulator')
+    }
+}
+
+def registerBuildTask = { String name, String sdk, Provider<Directory> buildDirProvider, String platformFlag ->
+    tasks.register(name, Exec) {
+        dependsOn tasks.named('prepareIosFrameworkInputs')
+        inputs.file(sourceFile)
+        inputs.dir(jniIncludeDir)
+        outputs.file(buildDirProvider.map { it.file('libsaferalloc.a') })
+        doFirst {
+            def buildDir = buildDirProvider.get().asFile
+            delete buildDir
+            buildDir.mkdirs()
+            commandLine xcrun(sdk, 'clang'),
+                    '-arch', 'arm64',
+                    "-m${platformFlag}-version-min=${iosMinVersion}",
+                    '-isysroot', sdkPath(sdk),
+                    '-std=c11',
+                    '-fembed-bitcode',
+                    '-DSAFERALLOC_IOS_PASSTHROUGH=1',
+                    '-I', jniIncludeDir.absolutePath,
+                    '-I', jniPlatformIncludeDir.absolutePath,
+                    '-c', sourceFile.absolutePath,
+                    '-o', new File(buildDir, 'saferalloc.o').absolutePath
+        }
+    }
+}
+
+def buildDeviceObject = registerBuildTask('buildIosDeviceObject', 'iphoneos', deviceBuildDir, 'iphoneos')
+def buildSimulatorObject = registerBuildTask('buildIosSimulatorObject', 'iphonesimulator', simulatorBuildDir, 'ios-simulator')
+
+tasks.register('archiveIosDeviceLibrary', Exec) {
+    dependsOn buildDeviceObject
+    inputs.file(deviceBuildDir.map { it.file('saferalloc.o') })
+    outputs.file(deviceBuildDir.map { it.file('libsaferalloc.a') })
+    doFirst {
+        commandLine xcrun('iphoneos', 'libtool'),
+                '-static',
+                '-o', deviceBuildDir.get().file('libsaferalloc.a').asFile.absolutePath,
+                deviceBuildDir.get().file('saferalloc.o').asFile.absolutePath
+    }
+}
+
+tasks.register('archiveIosSimulatorLibrary', Exec) {
+    dependsOn buildSimulatorObject
+    inputs.file(simulatorBuildDir.map { it.file('saferalloc.o') })
+    outputs.file(simulatorBuildDir.map { it.file('libsaferalloc.a') })
+    doFirst {
+        commandLine xcrun('iphonesimulator', 'libtool'),
+                '-static',
+                '-o', simulatorBuildDir.get().file('libsaferalloc.a').asFile.absolutePath,
+                simulatorBuildDir.get().file('saferalloc.o').asFile.absolutePath
+    }
+}
+
+def createFramework = { String name, Provider<Directory> inputDirProvider, String plistName ->
+    tasks.register(name, Sync) {
+        dependsOn tasks.named('archiveIosDeviceLibrary'), tasks.named('archiveIosSimulatorLibrary')
+        def frameworkDir = frameworkRoot.map { it.dir(name == 'createIosDeviceFramework' ? 'device/saferalloc.framework' : 'simulator/saferalloc.framework') }
+        from(inputDirProvider.map { it.file('libsaferalloc.a') }) {
+            rename { 'saferalloc' }
+        }
+        from(generatedHeadersDir) {
+            into 'Headers'
+        }
+        from(generatedPlistsDir.map { it.file(plistName) }) {
+            rename { 'Info.plist' }
+        }
+        into frameworkDir
+    }
+}
+
+createFramework('createIosDeviceFramework', deviceBuildDir, 'device-Info.plist')
+createFramework('createIosSimulatorFramework', simulatorBuildDir, 'simulator-Info.plist')
+
+tasks.register('createIosXcframework', Exec) {
+    dependsOn tasks.named('createIosDeviceFramework'), tasks.named('createIosSimulatorFramework')
+    outputs.dir(xcframeworkDir)
+    doFirst {
+        delete xcframeworkDir.get().asFile
+        commandLine 'xcodebuild',
+                '-create-xcframework',
+                '-framework', frameworkRoot.get().dir('device/saferalloc.framework').asFile.absolutePath,
+                '-framework', frameworkRoot.get().dir('simulator/saferalloc.framework').asFile.absolutePath,
+                '-output', xcframeworkDir.get().asFile.absolutePath
+    }
+}
+
+tasks.register('prepareIosPackage', Sync) {
+    dependsOn tasks.named('createIosXcframework')
+    from(xcframeworkDir)
+    into iosPackageDir.map { it.dir('saferalloc.xcframework') }
+    doLast {
+        def metadata = iosPackageDir.get().file('saferalloc.xcframework.json').asFile
+        metadata.text = """{
+  "name": "saferalloc",
+  "link": true,
+  "embed": false,
+  "forceLoad": true
+}
+"""
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    dependsOn tasks.named('prepareIosPackage')
+    from(iosPackageDir) {
+        into 'lib/ios'
+    }
+}
+
+tasks.named('test').configure {
+    enabled = false
+}

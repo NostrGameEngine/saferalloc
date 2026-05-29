@@ -18,5 +18,6 @@ include ':saferalloc-natives-windows-x86_64'
 include ':saferalloc-natives-windows-aarch64'
 include ':saferalloc-natives-macos-x86_64'
 include ':saferalloc-natives-macos-aarch64'
+include ':saferalloc-natives-ios'
 
 include ':saferalloc-natives-android'

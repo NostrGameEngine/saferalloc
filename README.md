@@ -14,6 +14,7 @@ The underlying implementations are platform-specific and might change over time.
 |Windows x86_64|mimalloc|mimalloc with MI_SECURE=ON|
 |Windows aarch64|mimalloc|mimalloc with MI_SECURE=ON|
 |Android 11+|passthrough|Modern Android has its own hardened allocator (Scudo), so we just pass through. |
+|iOS 15+|passthrough|iOS uses Apple libmalloc, which includes platform allocator hardening, so we just pass through. The native artifact is packaged as a static xcframework for [libJGLIOS](https://github.com/NostrGameEngine/libJGLIOS). |
 
 ## Public API
 

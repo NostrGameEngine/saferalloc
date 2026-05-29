@@ -34,6 +34,8 @@ jobs:
             module: saferalloc-natives-macos-x86_64
           - os: macos-latest
             module: saferalloc-natives-macos-aarch64
+          - os: macos-latest
+            module: saferalloc-natives-ios
 
     runs-on: ${{ matrix.os }}
 

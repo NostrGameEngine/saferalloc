@@ -25,6 +25,10 @@ set_target_properties(saferalloc PROPERTIES
 )
 
 target_compile_definitions(saferalloc PRIVATE SAFERALLOC_ANDROID_PASSTHROUGH=1)
+target_link_options(saferalloc PRIVATE
+  "-Wl,-z,max-page-size=16384"
+  "-Wl,-z,common-page-size=16384"
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   target_compile_options(saferalloc PRIVATE -O0 -g3)

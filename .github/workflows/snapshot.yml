@@ -1,6 +1,9 @@
 name: publish-snapshots
 
 on:
+  workflow_dispatch:
+  schedule:
+    - cron: '07 4 * * 0'
   push:
   pull_request:
 

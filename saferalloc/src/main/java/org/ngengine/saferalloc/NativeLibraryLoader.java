@@ -49,25 +49,40 @@ final class NativeLibraryLoader {
       throw new UnsatisfiedLinkError("Failed to read bundled native library: " + e);
     }
 
-    List<Path> candidates = new ArrayList<>();
-    addTempCandidate(candidates, baseName);
-    addUserCacheCandidate(candidates, baseName);
-    addUserHomeFallbackCandidate(candidates, baseName);
-
-    Throwable lastFailure = null;
-    for (Path candidateDir : candidates) {
-      try {
-        Path libraryPath = writeLibrary(candidateDir, mapped, libraryBytes);
-        System.load(libraryPath.toAbsolutePath().toString());
-        return;
-      } catch (Throwable t) {
-        lastFailure = t;
-      }
+    if (!mapped.equals(Paths.get(mapped).getFileName().toString()) || mapped.equals(".") || mapped.equals("..")) {
+      throw new UnsatisfiedLinkError("Invalid native library file name: " + mapped);
     }
 
-    UnsatisfiedLinkError error = new UnsatisfiedLinkError("Failed to extract/load native library from temp, user cache, or ~/.nge.");
-    if (lastFailure != null) {
-      error.initCause(lastFailure);
+    UnsatisfiedLinkError error = new UnsatisfiedLinkError(
+        "Failed to extract/load native library from temp, user cache, or ~/.nge.");
+    for (int rootIndex = 0; rootIndex < 3; rootIndex++) {
+      Path libraryPath = null;
+      Path directory = null;
+      try {
+        Path root = extractionRoot(rootIndex, baseName);
+        if (root == null) continue;
+        directory = NativeLibraryExtraction.createDirectory(root, baseName + "-");
+        libraryPath = writeLibrary(directory, mapped, libraryBytes);
+        System.load(libraryPath.toAbsolutePath().toString());
+        return;
+      } catch (IOException | UnsatisfiedLinkError | SecurityException | IllegalArgumentException
+          | UnsupportedOperationException failure) {
+        error.addSuppressed(failure);
+        if (libraryPath != null) {
+          try {
+            Files.deleteIfExists(libraryPath);
+          } catch (IOException | SecurityException cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
+          }
+        }
+        if (directory != null) {
+          try {
+            Files.deleteIfExists(directory);
+          } catch (IOException | SecurityException cleanupFailure) {
+            failure.addSuppressed(cleanupFailure);
+          }
+        }
+      }
     }
     throw error;
   }
@@ -91,44 +106,17 @@ final class NativeLibraryLoader {
     return path;
   }
 
-  private static void addTempCandidate(List<Path> candidates, String baseName) {
-    String tmp = System.getProperty("java.io.tmpdir", "").trim();
-    if (tmp.isEmpty()) {
-      return;
+  private static Path extractionRoot(int index, String baseName) {
+    if (index == 0) {
+      String tmp = System.getProperty("java.io.tmpdir", "").trim();
+      return tmp.isEmpty() ? null : Paths.get(tmp);
     }
-    Path tmpRoot = Paths.get(tmp);
-    if (!Files.isDirectory(tmpRoot) || !Files.isWritable(tmpRoot)) {
-      return;
+    if (index == 1) {
+      Path cacheRoot = getUserCacheRoot();
+      return cacheRoot == null ? null : cacheRoot.resolve("ngengine").resolve(baseName);
     }
-    try {
-      Path dir = Files.createTempDirectory(tmpRoot, baseName + "-");
-      dir.toFile().deleteOnExit();
-      candidates.add(dir);
-    } catch (IOException ignored) {
-      // Fall through to user cache.
-    }
-  }
-
-  private static void addUserCacheCandidate(List<Path> candidates, String baseName) {
-    Path cacheRoot = getUserCacheRoot();
-    if (cacheRoot == null) {
-      return;
-    }
-    Path dir = cacheRoot.resolve("ngengine").resolve(baseName);
-    if (ensureUsableDirectory(dir)) {
-      candidates.add(dir);
-    }
-  }
-
-  private static void addUserHomeFallbackCandidate(List<Path> candidates, String baseName) {
-    String userHome = System.getProperty("user.home", "").trim();
-    if (userHome.isEmpty()) {
-      return;
-    }
-    Path dir = Paths.get(userHome).resolve(".nge").resolve(baseName);
-    if (ensureUsableDirectory(dir)) {
-      candidates.add(dir);
-    }
+    String home = System.getProperty("user.home", "").trim();
+    return home.isEmpty() ? null : Paths.get(home).resolve(".nge").resolve(baseName);
   }
 
   private static Path getUserCacheRoot() {
@@ -149,26 +137,20 @@ final class NativeLibraryLoader {
     return home.resolve(".cache");
   }
 
-  private static boolean ensureUsableDirectory(Path dir) {
-    try {
-      Files.createDirectories(dir);
-      return Files.isDirectory(dir) && Files.isWritable(dir);
-    } catch (IOException e) {
-      return false;
-    }
-  }
-
-  private static Path writeLibrary(Path dir, String mapped, byte[] bytes) throws IOException {
-    if (!ensureUsableDirectory(dir)) {
-      throw new IOException("Directory is not writable: " + dir);
-    }
-
+  static Path writeLibrary(Path dir, String mapped, byte[] bytes) throws IOException {
     Path out = dir.resolve(mapped);
-    Files.write(out, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-    if (!Files.isReadable(out)) {
-      throw new IOException("Extracted library is not readable: " + out);
+    OutputStream stream = Files.newOutputStream(out, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+    try (OutputStream data = stream) {
+      out.toFile().deleteOnExit();
+      data.write(bytes);
+    } catch (IOException | RuntimeException failure) {
+      try {
+        Files.deleteIfExists(out);
+      } catch (IOException | SecurityException cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
+      throw failure;
     }
-    out.toFile().deleteOnExit();
     return out;
   }
 

@@ -16,6 +16,8 @@ The underlying implementations are platform-specific and might change over time.
 |Android 11+|passthrough|Modern Android has its own hardened allocator (Scudo), so we just pass through. |
 |iOS 15+|passthrough|iOS uses Apple libmalloc, which includes platform allocator hardening, so we just pass through. The native artifact is packaged as a static xcframework for [libJGLIOS](https://github.com/NostrGameEngine/libJGLIOS). |
 
+On desktop, bundled JNI libraries are extracted into a fresh private directory for each JVM run. The loader tries the system temporary directory, the user's cache, and then `~/.nge`. It rejects unsafe directory permissions and non-executable filesystems before loading, and schedules extracted files for removal at normal JVM exit. An abrupt exit may leave a private directory behind. Set `saferalloc.native.override` to an existing native file or directory when extraction is managed externally.
+
 ## Public API
 
 `org.ngengine.saferalloc.SaferAlloc` exposes:

@@ -3,8 +3,12 @@ package org.ngengine.saferalloc;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Comparator;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,14 +61,33 @@ class NativeLibraryExtractionTest {
   @Test
   void rejectsReplaceableParent() throws IOException {
     if (!Files.getFileStore(root).supportsFileAttributeView("posix")) return;
-    Path replaceable = Files.createTempDirectory("saferalloc-unsafe-");
+    // macOS java.io.tmpdir is below a private user directory, so use shared /tmp.
+    Path replaceable = Files.createTempDirectory(Paths.get("/tmp"), "saferalloc-unsafe-");
     try {
       Files.setPosixFilePermissions(replaceable,
-          java.nio.file.attribute.PosixFilePermissions.fromString("rwxrwxrwx"));
-      assertThrows(IOException.class, () ->
+          PosixFilePermissions.fromString("rwxrwxrwx"));
+      IOException failure = assertThrows(IOException.class, () ->
           NativeLibraryExtraction.createDirectory(replaceable, "saferalloc-"));
+      assertTrue(failure.getMessage().startsWith("Native extraction ancestor is writable by other users:"));
     } finally {
-      Files.deleteIfExists(replaceable);
+      // Preserve the assertion failure even if a regression creates a child directory.
+      try (Stream<Path> paths = Files.walk(replaceable)) {
+        for (Path path : paths.sorted(Comparator.reverseOrder()).toArray(Path[]::new)) {
+          Files.deleteIfExists(path);
+        }
+      }
     }
+  }
+
+  @Test
+  void acceptsWritableParentInsidePrivateAncestor() throws IOException {
+    if (!Files.getFileStore(root).supportsFileAttributeView("posix")) return;
+    Files.setPosixFilePermissions(root, PosixFilePermissions.fromString("rwx------"));
+    Path protectedParent = Files.createDirectory(root.resolve("writable"));
+    Files.setPosixFilePermissions(protectedParent, PosixFilePermissions.fromString("rwxrwxrwx"));
+
+    Path directory = NativeLibraryExtraction.createDirectory(protectedParent, "saferalloc-");
+    assertEquals(protectedParent.toRealPath(), directory.getParent());
+    assertEquals(PosixFilePermissions.fromString("rwx------"), Files.getPosixFilePermissions(directory));
   }
 }

@@ -23,7 +23,7 @@ public final class SaferAlloc {
     ensureLoaded();
     requireNonNegativeSize(size);
     long addr = SaferAllocNative.malloc(size);
-    return wrapMemByteBuffer(addr, size);
+    return wrapNewAllocation(addr, size);
   }
 
   public static ByteBuffer calloc(int count, int size) {
@@ -32,7 +32,7 @@ public final class SaferAlloc {
     requireNonNegativeSize(size);
     int total = requireBufferCapacity(count, size);
     long addr = SaferAllocNative.calloc(count, size);
-    return wrapMemByteBuffer(addr, total);
+    return wrapNewAllocation(addr, total);
   }
 
   public static ByteBuffer realloc(ByteBuffer buffer, int newSize) {
@@ -51,7 +51,7 @@ public final class SaferAlloc {
     requireNonNegativeSize(size);
     requireValidAlignment(alignment);
     long addr = SaferAllocNative.mallocAligned(size, alignment);
-    return wrapMemByteBuffer(addr, size);
+    return wrapNewAllocation(addr, size);
   }
 
   public static long address(Buffer buffer) {
@@ -120,6 +120,21 @@ public final class SaferAlloc {
   private static int pointerSizeBytes() {
     ensureLoaded();
     return SaferAllocNative.pointerSizeBytes();
+  }
+
+  private static ByteBuffer wrapNewAllocation(long addr, int size) {
+    try {
+      ByteBuffer buffer = wrapMemByteBuffer(addr, size);
+      if (buffer == null && addr != 0L) {
+        SaferAllocNative.free(addr);
+      }
+      return buffer;
+    } catch (RuntimeException | Error failure) {
+      if (addr != 0L) {
+        SaferAllocNative.free(addr);
+      }
+      throw failure;
+    }
   }
 
   private static ByteBuffer wrapMemByteBuffer(long addr, int size) {

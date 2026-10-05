@@ -12,7 +12,7 @@ def arch = System.getProperty('os.arch', '').toLowerCase()
 
 def nativesProject
 def nativeExt
-if (osName.contains('win')) {
+if (osName.startsWith('win')) {
   if (arch == 'aarch64' || arch == 'arm64') {
     nativesProject = project(':saferalloc-natives-windows-aarch64')
   } else {

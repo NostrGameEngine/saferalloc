@@ -176,7 +176,7 @@ final class NativeLibraryLoader {
       return "android";
     }
     String n = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-    if (n.contains("win")) return "windows";
+    if (n.startsWith("win")) return "windows";
     if (n.contains("mac") || n.contains("darwin")) return "macos";
     return "linux";
   }

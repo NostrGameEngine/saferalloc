@@ -10,6 +10,7 @@ public final class SaferAllocNative {
   public static native long malloc(long size);
   public static native long calloc(long count, long size);
   public static native long realloc(long addr, long newSize);
+  static native ByteBuffer reallocBuffer(ByteBuffer buffer, int newSize);
   public static native void free(long addr);
   public static native long mallocAligned(long size, long alignment);
   public static  native long currentAllocatedBytes();

@@ -181,6 +181,72 @@ JNIEXPORT jlong JNICALL Java_org_ngengine_saferalloc_SaferAllocNative_realloc(JN
   return (jlong)(uintptr_t)safer_tracked_realloc((void*)(uintptr_t)addr, (size_t)newSize);
 }
 
+// The Java-facing reallocation must not release the original allocation until
+// the replacement's Java wrapper exists. Raw realloc entry points retain their
+// usual native semantics and may resize in place.
+JNIEXPORT jobject JNICALL Java_org_ngengine_saferalloc_SaferAllocNative_reallocBuffer(JNIEnv* env, jclass cls, jobject buffer, jint newSize) {
+  (void)cls;
+  if (newSize < 0) {
+    safer_throw_illegal_argument(env, "size must be >= 0");
+    return NULL;
+  }
+
+  void* old_ptr = NULL;
+  jlong old_capacity = 0;
+  if (buffer != NULL) {
+    old_ptr = (*env)->GetDirectBufferAddress(env, buffer);
+    if ((*env)->ExceptionCheck(env)) {
+      return NULL;
+    }
+    old_capacity = (*env)->GetDirectBufferCapacity(env, buffer);
+    if ((*env)->ExceptionCheck(env)) {
+      return NULL;
+    }
+    if (old_ptr == NULL || old_capacity < 0) {
+      safer_throw_illegal_argument(env, "buffer must be a direct ByteBuffer");
+      return NULL;
+    }
+  }
+
+  if (newSize == 0) {
+    safer_tracked_free(old_ptr);
+    return NULL;
+  }
+
+  void* new_ptr = safer_tracked_malloc((size_t)newSize);
+  if (new_ptr == NULL) {
+    // Preserve realloc(NULL, size)'s allocation-failure behavior.
+    if (old_ptr != NULL) {
+      jclass oom = (*env)->FindClass(env, "java/lang/OutOfMemoryError");
+      if (oom != NULL) {
+        (*env)->ThrowNew(env, oom, "realloc failed; original buffer is still valid");
+      }
+    }
+    return NULL;
+  }
+
+  jobject replacement = safer_new_direct_byte_buffer(env, new_ptr, (jlong)newSize);
+  if (replacement == NULL || (*env)->ExceptionCheck(env)) {
+    // In particular, NewDirectByteBuffer may throw while Java heap is exhausted.
+    safer_tracked_free(new_ptr);
+    if (!(*env)->ExceptionCheck(env)) {
+      jclass oom = (*env)->FindClass(env, "java/lang/OutOfMemoryError");
+      if (oom != NULL) {
+        (*env)->ThrowNew(env, oom, "could not create replacement ByteBuffer");
+      }
+    }
+    return NULL;
+  }
+
+  // Copy the allocation's contents, regardless of the old position and limit.
+  size_t copy_size = (size_t)(old_capacity < (jlong)newSize ? old_capacity : (jlong)newSize);
+  if (copy_size > 0) {
+    memcpy(new_ptr, old_ptr, copy_size);
+  }
+  safer_tracked_free(old_ptr);
+  return replacement;
+}
+
 JNIEXPORT void JNICALL Java_org_ngengine_saferalloc_SaferAllocNative_free(JNIEnv* env, jclass cls, jlong addr) {
   (void)env;
   (void)cls;

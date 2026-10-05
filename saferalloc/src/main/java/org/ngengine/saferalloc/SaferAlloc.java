@@ -38,12 +38,7 @@ public final class SaferAlloc {
   public static ByteBuffer realloc(ByteBuffer buffer, int newSize) {
     ensureLoaded();
     requireNonNegativeSize(newSize);
-    long addr = address(buffer);
-    long newAddr = SaferAllocNative.realloc(addr, newSize);
-    if (newAddr == 0L && addr != 0L && newSize > 0) {
-      throw new OutOfMemoryError("realloc failed; original buffer is still valid");
-    }
-    return wrapMemByteBuffer(newAddr, newSize);
+    return SaferAllocNative.reallocBuffer(buffer, newSize);
   }
 
   public static ByteBuffer mallocAligned(int size, int alignment) {

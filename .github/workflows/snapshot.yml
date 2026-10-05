@@ -81,6 +81,7 @@ jobs:
 
 
       - name: Publish snapshot to Maven Central snapshots
+        if: github.event_name == 'push' && github.repository == 'NostrGameEngine/saferalloc'
         shell: bash
         env:
           ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
@@ -89,6 +90,12 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishToSonatype
+
+      - name: Verify native publication locally
+        if: github.event_name != 'push' || github.repository != 'NostrGameEngine/saferalloc'
+        shell: bash
+        run: |
+          ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishToMavenLocal
 
   publish-core:
     runs-on: ubuntu-latest
@@ -120,6 +127,7 @@ jobs:
           echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
 
       - name: Publish core snapshot
+        if: github.event_name == 'push' && github.repository == 'NostrGameEngine/saferalloc'
         shell: bash
         env:
           ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.SONATYPE_USERNAME }}
@@ -128,3 +136,9 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :saferalloc:publishToSonatype
+
+      - name: Verify core publication locally
+        if: github.event_name != 'push' || github.repository != 'NostrGameEngine/saferalloc'
+        shell: bash
+        run: |
+          ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :saferalloc:publishToMavenLocal

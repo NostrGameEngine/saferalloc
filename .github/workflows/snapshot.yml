@@ -77,7 +77,7 @@ jobs:
       - name: Run core tests (uses platform natives dependency)
         shell: bash
         run: |
-          ./gradlew :saferalloc:test
+          ./gradlew --refresh-dependencies -PVERSION_NAME="${VERSION}" :saferalloc:test
 
 
       - name: Publish snapshot to Maven Central snapshots
@@ -90,6 +90,15 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           ./gradlew --no-daemon -PVERSION_NAME=${VERSION} :${{ matrix.module }}:publishToSonatype
+
+      - name: Upload core test reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: tests-${{ matrix.module }}
+          path: |
+            saferalloc/build/test-results/test/
+            saferalloc/build/reports/tests/test/
 
       - name: Verify native publication locally
         if: github.event_name != 'push' || github.repository != 'NostrGameEngine/saferalloc'

@@ -21,7 +21,7 @@ public class DestructiveForkedTest {
     Assumptions.assumeTrue(Boolean.getBoolean("enableDestructiveTests"));
 
     String java = System.getProperty("java.home") + "/bin/java";
-    String cp = System.getProperty("java.class.path");
+    String cp = NativeTestSupport.classpath(DestructiveMain.class);
 
     List<String> cmd = new ArrayList<>();
     cmd.add(java);

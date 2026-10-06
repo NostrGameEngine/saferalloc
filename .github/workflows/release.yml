@@ -67,12 +67,6 @@ jobs:
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/27.2.12479018" >> "$GITHUB_ENV"
 
 
-      - name: Run core tests (uses platform natives dependency)
-        shell: bash
-        run: |
-          ./gradlew :saferalloc:test
-
-
       - name: Compute version
         shell: bash
         run: |
@@ -96,6 +90,10 @@ jobs:
             echo "Release workflow resolved VERSION=${VERSION}, which is a snapshot. Refusing Central release publish." >&2
             exit 1
           fi
+
+      - name: Run core tests (uses platform natives dependency)
+        shell: bash
+        run: ./gradlew -PVERSION_NAME="${VERSION}" :saferalloc:test
 
       - name: Publish release to Maven Central
         env:
@@ -133,10 +131,6 @@ jobs:
         with:
           gradle-version: "8.14.3"
 
-      - name: Run core tests (Linux)
-        run: |
-          ./gradlew :saferalloc:test
-
       - name: Compute version
         shell: bash
         run: |
@@ -160,6 +154,9 @@ jobs:
             echo "Release workflow resolved VERSION=${VERSION}, which is a snapshot. Refusing Central release publish." >&2
             exit 1
           fi
+
+      - name: Run core tests (Linux)
+        run: ./gradlew -PVERSION_NAME="${VERSION}" :saferalloc:test
 
       - name: Publish core release to Maven Central
         env:

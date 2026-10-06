@@ -14,10 +14,7 @@ class AllocationFailureTest {
   @Test
   void freesNewNativeAllocationsWhenJavaHeapIsExhausted() throws Exception {
     String java = new File(System.getProperty("java.home"), "bin/java").getAbsolutePath();
-    String classpath = new File(AllocationFailureMain.class.getProtectionDomain()
-        .getCodeSource().getLocation().toURI()).getAbsolutePath() + File.pathSeparator
-        + new File(SaferAlloc.class.getProtectionDomain().getCodeSource()
-        .getLocation().toURI()).getAbsolutePath();
+    String classpath = NativeTestSupport.classpath(AllocationFailureMain.class);
     String nativePath = System.getProperty("saferalloc.native.override");
     assertNotNull(nativePath, "the test needs the configured test native library");
     for (String operation : new String[] {"malloc", "calloc", "aligned"}) {

@@ -1,6 +1,5 @@
 package org.ngengine.saferalloc;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,10 +24,7 @@ class ReallocationFailureTest {
     command.add("-Dsaferalloc.native.override=" + nativeOverride);
     // Gradle workers and the JUnit console need not expose test classes through
     // java.class.path. These code sources also handle separate main/test outputs.
-    String classpath = new File(ReallocationFailureMain.class.getProtectionDomain()
-        .getCodeSource().getLocation().toURI()).getAbsolutePath() + File.pathSeparator
-        + new File(SaferAlloc.class.getProtectionDomain().getCodeSource()
-        .getLocation().toURI()).getAbsolutePath();
+    String classpath = NativeTestSupport.classpath(ReallocationFailureMain.class);
     command.add("-cp");
     command.add(classpath);
     command.add(ReallocationFailureMain.class.getName());

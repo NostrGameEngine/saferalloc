@@ -1,6 +1,9 @@
 description = 'Core Java API'
 
 dependencies {
+  implementation "org.jmonkeyengine:native-loader:${rootProject.nativeBootstrapVersion}"
+  implementation "org.jmonkeyengine:native-os:${rootProject.nativeBootstrapVersion}"
+
   testImplementation platform('org.junit:junit-bom:5.10.2')
   testImplementation 'org.junit.jupiter:junit-jupiter'
   testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
@@ -41,6 +44,9 @@ dependencies {
 test {
   dependsOn "${nativesProject.path}:buildNativeTest"
   useJUnitPlatform()
+  testLogging {
+    exceptionFormat = 'full'
+  }
   doFirst {
     File outDir = nativesProject.layout.buildDirectory.dir('cmake-test/out').get().asFile
     File nativeFile = [
@@ -51,5 +57,6 @@ test {
     ].find { it.exists() } ?: new File(outDir, "libsaferalloc${nativeExt}")
     systemProperty 'saferalloc.native.override', nativeFile.absolutePath
     systemProperty 'saferalloc.test.probes.enabled', 'true'
+    systemProperty 'saferalloc.test.native.jar', nativesProject.tasks.named('jar').get().archiveFile.get().asFile.absolutePath
   }
 }

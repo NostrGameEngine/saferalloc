@@ -1,35 +1,18 @@
 package org.ngengine.saferalloc;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 
 class NativeLibraryLoaderTest {
   @Test
-  void detectsDesktopOperatingSystems() throws Exception {
-    String originalOs = System.getProperty("os.name");
-    String originalRuntime = System.getProperty("java.runtime.name");
-    String originalVm = System.getProperty("java.vm.name");
+  void iosRuntimeSkipsDesktopExtractionAndLoading() {
+    String os = System.getProperty("os.name");
     try {
-      System.setProperty("java.runtime.name", "OpenJDK Runtime Environment");
-      System.setProperty("java.vm.name", "OpenJDK 64-Bit Server VM");
-      Method detectOs = NativeLibraryLoader.class.getDeclaredMethod("detectOs");
-      detectOs.setAccessible(true);
-      String[][] cases = {
-          {"Linux", "linux"},
-          {"Windows 11", "windows"},
-          {"Mac OS X", "macos"},
-          {"Darwin", "macos"}
-      };
-      for (String[] testCase : cases) {
-        System.setProperty("os.name", testCase[0]);
-        assertEquals(testCase[1], detectOs.invoke(null), testCase[0]);
+      for (String label : new String[]{"iOS", "iPhone OS", "iPad"}) {
+        System.setProperty("os.name", label);
+        NativeLibraryLoader.load("missing-ios-static-library");
       }
     } finally {
-      restoreProperty("os.name", originalOs);
-      restoreProperty("java.runtime.name", originalRuntime);
-      restoreProperty("java.vm.name", originalVm);
+      restoreProperty("os.name", os);
     }
   }
 
